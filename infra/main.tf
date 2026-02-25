@@ -28,7 +28,16 @@ resource "aws_subnet" "private_a" {
   availability_zone = "ap-south-1a"
   tags = { Name = "devops-portfolio-private-subnet-a" }
 }
+# Private Subnet in second AZ (for RDS AZ coverage)
+resource "aws_subnet" "private_b" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.3.0/24"   # naya CIDR – previous se overlap nahi
+  availability_zone = "ap-south-1b"   # dusra AZ
 
+  tags = {
+    Name = "devops-portfolio-private-subnet-b"
+  }
+}
 resource "aws_eip" "nat" {
   domain = "vpc"
   tags = { Name = "devops-portfolio-nat-eip" }
@@ -166,3 +175,69 @@ output "private_subnet_id" {
 output "ec2_public_ip" {
   value = aws_instance.web.public_ip
 }  
+
+# ────────────────────────────────────────────────────────────────────────────────
+# DAY 5: RDS PostgreSQL in Private Subnet + Connection Setup
+# ────────────────────────────────────────────────────────────────────────────────
+
+# DB Subnet Group – private subnets ke liye
+resource "aws_db_subnet_group" "private" {
+  name       = "devops-portfolio-db-subnet-group"
+  subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_b.id]  # ab 2 AZs cover
+
+  tags = {
+    Name = "devops-portfolio-db-subnet-group"
+  }
+}
+# Security Group for RDS – sirf EC2 se connect allow
+resource "aws_security_group" "rds_sg" {
+  name        = "devops-portfolio-rds-sg"
+  description = "Allow PostgreSQL from EC2 SG"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description     = "PostgreSQL from EC2"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ec2_sg.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "devops-portfolio-rds-sg"
+  }
+}
+
+# RDS PostgreSQL Instance – private subnet mein
+resource "aws_db_instance" "postgres" {
+  identifier             = "devops-portfolio-db"
+  allocated_storage      = 20
+  db_name                = "portfoliodb"
+  engine                 = "postgres"
+  engine_version         = "15"
+  instance_class         = "db.t3.micro"
+  username               = "adminuser"
+  password               = "SuperSecurePass123!"   # production mein Secrets Manager use karna
+  skip_final_snapshot    = true
+  publicly_accessible    = false
+  db_subnet_group_name   = aws_db_subnet_group.private.name
+  vpc_security_group_ids = [aws_security_group.rds_sg.id]
+  multi_az               = false
+
+  tags = {
+    Name = "devops-portfolio-postgres-db"
+  }
+}
+
+# Outputs – RDS endpoint dekhne ke liye
+output "rds_endpoint" {
+  value       = aws_db_instance.postgres.endpoint
+  description = "Use this to connect from EC2"
+}
