@@ -9,3 +9,5 @@
 - DB subnet group + RDS SG (EC2 se connect allow)
 - Endpoint output mila
 - Connect test (psql) – successful
+## day 6 Day 6: Auto Scaling Group + Launch Template
+
