@@ -241,3 +241,87 @@ output "rds_endpoint" {
   value       = aws_db_instance.postgres.endpoint
   description = "Use this to connect from EC2"
 }
+# ────────────────────────────────────────────────────────────────────────────────
+# Day 6: Auto Scaling Group (ASG) + Launch Template
+# ────────────────────────────────────────────────────────────────────────────────
+
+# Launch Template (EC2 instances ka blueprint – user_data ke saath)
+resource "aws_launch_template" "web_lt" {
+  name_prefix   = "devops-portfolio-web-lt-"
+  image_id      = "ami-0f5ee92e2d63afc18"   # Ubuntu 22.04 – ap-south-1 mein
+  instance_type = "t3.micro"
+
+  network_interfaces {
+    associate_public_ip_address = true
+    security_groups             = [aws_security_group.ec2_sg.id]
+  }
+
+  user_data = base64encode(<<-EOF
+    #!/bin/bash
+    apt-get update -y
+    apt-get install -y nodejs npm
+
+    mkdir -p /app
+    cd /app
+
+    npm init -y
+    npm install express
+
+    cat > server.js <<'NODE_EOF'
+    const http = require('http');
+    const express = require('express');
+    const app = express();
+
+    app.get('/', (req, res) => {
+      res.send('Hello from Auto Scaled EC2 Instance!');
+    });
+
+    app.listen(80, '0.0.0.0', () => {
+      console.log('Server running on port 80');
+    });
+    NODE_EOF
+
+    node server.js &
+  EOF
+  )
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name = "devops-portfolio-asg-instance"
+    }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+# Auto Scaling Group (ASG) – instances ko scale karega
+resource "aws_autoscaling_group" "web_asg" {
+  name                = "devops-portfolio-web-asg"
+  min_size            = 1
+  max_size            = 3
+  desired_capacity    = 1
+  vpc_zone_identifier = [aws_subnet.public_a.id]
+
+  launch_template {
+    id      = aws_launch_template.web_lt.id
+    version = "$Latest"
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "devops-portfolio-asg-instance"
+    propagate_at_launch = true
+  }
+
+  health_check_type         = "EC2"
+  health_check_grace_period = 300
+}
+
+# Output: ASG name
+output "asg_name" {
+  value       = aws_autoscaling_group.web_asg.name
+  description = "Auto Scaling Group name"
+}
