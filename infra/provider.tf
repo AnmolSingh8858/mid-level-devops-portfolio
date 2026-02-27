@@ -8,5 +8,5 @@ terraform {
 }
 
 provider "aws" {
-  region = "ap-south-1"   # Mumbai region – low latency for India
+  region = "ap-south-1" # Mumbai region – low latency for India
 }

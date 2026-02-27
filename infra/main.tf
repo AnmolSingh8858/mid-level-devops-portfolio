@@ -11,7 +11,7 @@ resource "aws_vpc" "main" {
 
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.main.id
-  tags = { Name = "devops-portfolio-igw" }
+  tags   = { Name = "devops-portfolio-igw" }
 }
 
 resource "aws_subnet" "public_a" {
@@ -19,20 +19,20 @@ resource "aws_subnet" "public_a" {
   cidr_block              = "10.0.1.0/24"
   map_public_ip_on_launch = true
   availability_zone       = "ap-south-1a"
-  tags = { Name = "devops-portfolio-public-subnet-a" }
+  tags                    = { Name = "devops-portfolio-public-subnet-a" }
 }
 
 resource "aws_subnet" "private_a" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.2.0/24"
   availability_zone = "ap-south-1a"
-  tags = { Name = "devops-portfolio-private-subnet-a" }
+  tags              = { Name = "devops-portfolio-private-subnet-a" }
 }
 # Private Subnet in second AZ (for RDS AZ coverage)
 resource "aws_subnet" "private_b" {
   vpc_id            = aws_vpc.main.id
-  cidr_block        = "10.0.3.0/24"   # naya CIDR – previous se overlap nahi
-  availability_zone = "ap-south-1b"   # dusra AZ
+  cidr_block        = "10.0.3.0/24" # naya CIDR – previous se overlap nahi
+  availability_zone = "ap-south-1b" # dusra AZ
 
   tags = {
     Name = "devops-portfolio-private-subnet-b"
@@ -40,14 +40,14 @@ resource "aws_subnet" "private_b" {
 }
 resource "aws_eip" "nat" {
   domain = "vpc"
-  tags = { Name = "devops-portfolio-nat-eip" }
+  tags   = { Name = "devops-portfolio-nat-eip" }
 }
 
 resource "aws_nat_gateway" "nat" {
   allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public_a.id
-  tags = { Name = "devops-portfolio-nat-gateway" }
-  depends_on = [aws_internet_gateway.igw]
+  tags          = { Name = "devops-portfolio-nat-gateway" }
+  depends_on    = [aws_internet_gateway.igw]
 }
 
 resource "aws_route_table" "public" {
@@ -122,13 +122,13 @@ resource "aws_security_group" "ec2_sg" {
 
 # NEW: EC2 Instance in Public Subnet
 resource "aws_instance" "web" {
-  ami                    = "ami-0f5ee92e2d63afc18"   # Ubuntu 22.04 in ap-south-1 (confirm console mein latest)
-  instance_type          = "t3.micro"
-  subnet_id              = aws_subnet.public_a.id
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  ami                         = "ami-0f5ee92e2d63afc18" # Ubuntu 22.04 in ap-south-1 (confirm console mein latest)
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.public_a.id
+  vpc_security_group_ids      = [aws_security_group.ec2_sg.id]
   associate_public_ip_address = true
-    
- user_data = <<-EOT
+
+  user_data = <<-EOT
     #!/bin/bash
     apt-get update -y
     apt-get install -y nodejs npm
@@ -174,7 +174,7 @@ output "private_subnet_id" {
 
 output "ec2_public_ip" {
   value = aws_instance.web.public_ip
-}  
+}
 
 # ────────────────────────────────────────────────────────────────────────────────
 # DAY 5: RDS PostgreSQL in Private Subnet + Connection Setup
@@ -183,7 +183,7 @@ output "ec2_public_ip" {
 # DB Subnet Group – private subnets ke liye
 resource "aws_db_subnet_group" "private" {
   name       = "devops-portfolio-db-subnet-group"
-  subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_b.id]  # ab 2 AZs cover
+  subnet_ids = [aws_subnet.private_a.id, aws_subnet.private_b.id] # ab 2 AZs cover
 
   tags = {
     Name = "devops-portfolio-db-subnet-group"
@@ -224,7 +224,7 @@ resource "aws_db_instance" "postgres" {
   engine_version         = "15"
   instance_class         = "db.t3.micro"
   username               = "adminuser"
-  password               = "SuperSecurePass123!"   # production mein Secrets Manager use karna
+  password               = "SuperSecurePass123!" # production mein Secrets Manager use karna
   skip_final_snapshot    = true
   publicly_accessible    = false
   db_subnet_group_name   = aws_db_subnet_group.private.name
@@ -248,7 +248,7 @@ output "rds_endpoint" {
 # Launch Template (EC2 instances ka blueprint – user_data ke saath)
 resource "aws_launch_template" "web_lt" {
   name_prefix   = "devops-portfolio-web-lt-"
-  image_id      = "ami-0f5ee92e2d63afc18"   # Ubuntu 22.04 – ap-south-1 mein
+  image_id      = "ami-0f5ee92e2d63afc18" # Ubuntu 22.04 – ap-south-1 mein
   instance_type = "t3.micro"
 
   network_interfaces {

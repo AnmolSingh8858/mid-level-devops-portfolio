@@ -2,7 +2,7 @@
 # Day 7 Fix: Second Public Subnet in AZ 1b (for ALB AZ coverage)
 resource "aws_subnet" "public_b" {
   vpc_id                  = aws_vpc.main.id
-  cidr_block              = "10.0.4.0/24"   # naya CIDR – overlap nahi
+  cidr_block              = "10.0.4.0/24" # naya CIDR – overlap nahi
   map_public_ip_on_launch = true
   availability_zone       = "ap-south-1b"
 
@@ -44,7 +44,7 @@ resource "aws_lb" "web_alb" {
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.ec2_sg.id]
-  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id]  # public subnet mein ALB banta hai
+  subnets            = [aws_subnet.public_a.id, aws_subnet.public_b.id] # public subnet mein ALB banta hai
 
   tags = {
     Name = "devops-portfolio-alb"
@@ -66,7 +66,7 @@ resource "aws_lb_listener" "http" {
 # Target Group Attachment – current EC2 instance ko attach karo
 resource "aws_lb_target_group_attachment" "web" {
   target_group_arn = aws_lb_target_group.web_tg.arn
-  target_id        = aws_instance.web.id   # Day 4 ka EC2
+  target_id        = aws_instance.web.id # Day 4 ka EC2
   port             = 80
 }
 
